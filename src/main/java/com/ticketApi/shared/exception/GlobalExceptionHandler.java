@@ -2,6 +2,7 @@ package com.ticketApi.shared.exception;
 
 import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
+import com.ticketApi.user.exception.EmailAlreadyRegisteredException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
     ProblemDetail tratarLoteNaoEncontrado(TicketBatchNotFoundException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
         problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    ProblemDetail tratarEmailJaCadastrado(EmailAlreadyRegisteredException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("E-mail já cadastrado");
         return problema;
     }
 
@@ -66,8 +74,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HandlerMethodValidationException.class)
     ProblemDetail tratarValidacaoDeMetodo(HandlerMethodValidationException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                "Um ou mais parâmetros da requisição são inválidos"
+                HttpStatus.BAD_REQUEST, "Um ou mais parâmetros da requisição são inválidos"
         );
         problema.setTitle("Parâmetro de requisição inválido");
         return problema;
@@ -76,8 +83,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ProblemDetail tratarTipoDeArgumentoInvalido(MethodArgumentTypeMismatchException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                "O parâmetro '" + excecao.getName() + "' possui um valor inválido"
+                HttpStatus.BAD_REQUEST, "O parâmetro '" + excecao.getName() + "' possui um valor inválido"
         );
         problema.setTitle("Parâmetro de requisição inválido");
         return problema;
@@ -86,8 +92,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail tratarCorpoIlegivel(HttpMessageNotReadableException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                "O corpo da requisição está ausente ou possui formato inválido"
+                HttpStatus.BAD_REQUEST, "O corpo da requisição está ausente ou possui formato inválido"
         );
         problema.setTitle("Requisição inválida");
         return problema;

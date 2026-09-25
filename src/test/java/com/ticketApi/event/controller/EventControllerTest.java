@@ -1,5 +1,6 @@
 package com.ticketApi.event.controller;
 
+import com.ticketApi.auth.config.SecurityConfig;
 import com.ticketApi.event.dto.EventPageResponse;
 import com.ticketApi.event.dto.EventResponse;
 import com.ticketApi.event.exception.EventNotFoundException;
@@ -29,8 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(EventController.class)
-@Import(GlobalExceptionHandler.class)
-@WithMockUser
+@Import({GlobalExceptionHandler.class, SecurityConfig.class})
 class EventControllerTest {
 
     private static final UUID EVENTO_ID = UUID.fromString("d5191ef8-5d9b-49c9-b5d2-241795a801fe");
@@ -46,6 +46,7 @@ class EventControllerTest {
     private EventService servicoDeEventos;
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveCriarEvento() throws Exception {
         given(servicoDeEventos.criar(any())).willReturn(criarRespostaDeEvento());
 
@@ -68,6 +69,7 @@ class EventControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveRejeitarRequisicaoDeCriacaoInvalida() throws Exception {
         simuladorMvc.perform(post("/api/events")
                         .with(csrf())
@@ -129,6 +131,7 @@ class EventControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveRejeitarCorpoComFormatoInvalido() throws Exception {
         simuladorMvc.perform(post("/api/events")
                         .with(csrf())
@@ -138,6 +141,29 @@ class EventControllerTest {
                 .andExpect(jsonPath("$.title").value("Requisição inválida"))
                 .andExpect(jsonPath("$.detail")
                         .value("O corpo da requisição está ausente ou possui formato inválido"));
+    }
+
+    @Test
+    void deveExigirAutenticacaoParaCriarEvento() throws Exception {
+        simuladorMvc.perform(post("/api/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.title").value("Autenticação necessária"))
+                .andExpect(jsonPath("$.detail")
+                        .value("É necessário informar credenciais válidas para acessar este recurso"));
+    }
+
+    @Test
+    @WithMockUser(roles = "CLIENTE")
+    void deveNegarCriacaoDeEventoParaCliente() throws Exception {
+        simuladorMvc.perform(post("/api/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("Acesso negado"))
+                .andExpect(jsonPath("$.detail")
+                        .value("O usuário autenticado não possui permissão para acessar este recurso"));
     }
 
     private EventResponse criarRespostaDeEvento() {

@@ -1,5 +1,6 @@
 package com.ticketApi.ticket.controller;
 
+import com.ticketApi.auth.config.SecurityConfig;
 import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.shared.exception.GlobalExceptionHandler;
 import com.ticketApi.ticket.dto.TicketBatchPageResponse;
@@ -31,8 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TicketBatchController.class)
-@Import(GlobalExceptionHandler.class)
-@WithMockUser
+@Import({GlobalExceptionHandler.class, SecurityConfig.class})
 class TicketBatchControllerTest {
 
     private static final UUID EVENTO_ID = UUID.fromString("11f9ded0-ebea-4fdf-b2cf-671c0900ead5");
@@ -45,6 +45,7 @@ class TicketBatchControllerTest {
     private TicketBatchService servicoDeLotes;
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveCriarLote() throws Exception {
         given(servicoDeLotes.criar(eq(EVENTO_ID), any())).willReturn(criarRespostaDeLote());
 
@@ -66,6 +67,7 @@ class TicketBatchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveRejeitarRequisicaoDeCriacaoInvalida() throws Exception {
         simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
                         .with(csrf())
@@ -77,6 +79,7 @@ class TicketBatchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void deveRetornarNaoEncontradoAoCriarLoteParaEventoInexistente() throws Exception {
         given(servicoDeLotes.criar(eq(EVENTO_ID), any())).willThrow(new EventNotFoundException(EVENTO_ID));
 

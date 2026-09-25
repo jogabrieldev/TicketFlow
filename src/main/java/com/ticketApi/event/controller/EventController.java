@@ -4,6 +4,8 @@ import com.ticketApi.event.dto.CreateEventRequest;
 import com.ticketApi.event.dto.EventPageResponse;
 import com.ticketApi.event.dto.EventResponse;
 import com.ticketApi.event.service.EventService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,6 +34,11 @@ public class EventController {
     }
 
     @PostMapping
+    @Operation(
+            summary = "Criar evento",
+            description = "Cria um evento. Operação restrita a administradores.",
+            security = @SecurityRequirement(name = "autenticacaoBasica")
+    )
     public ResponseEntity<EventResponse> criar(@Valid @RequestBody CreateEventRequest requisicao) {
         EventResponse evento = servicoDeEventos.criar(requisicao);
 

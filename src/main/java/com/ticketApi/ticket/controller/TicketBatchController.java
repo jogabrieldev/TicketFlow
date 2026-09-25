@@ -4,6 +4,8 @@ import com.ticketApi.ticket.dto.CreateTicketBatchRequest;
 import com.ticketApi.ticket.dto.TicketBatchPageResponse;
 import com.ticketApi.ticket.dto.TicketBatchResponse;
 import com.ticketApi.ticket.service.TicketBatchService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,6 +34,11 @@ public class TicketBatchController {
     }
 
     @PostMapping("/events/{eventoId}/ticket-batches")
+    @Operation(
+            summary = "Criar lote de ingressos",
+            description = "Cria um lote para um evento. Operação restrita a administradores.",
+            security = @SecurityRequirement(name = "autenticacaoBasica")
+    )
     public ResponseEntity<TicketBatchResponse> criar(
             @PathVariable UUID eventoId,
             @Valid @RequestBody CreateTicketBatchRequest requisicao
