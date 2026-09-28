@@ -37,10 +37,7 @@ public class UserService {
         }
 
         String senhaHash = codificadorDeSenha.encode(requisicao.senha());
-        User usuario = new User(requisicao.nome(), emailNormalizado,
-                senhaHash,
-                UserRole.CLIENTE
-        );
+        User usuario = new User(requisicao.nome(), emailNormalizado, senhaHash, UserRole.CLIENTE);
 
         try {
             return UserResponse.de(repositorioDeUsuarios.saveAndFlush(usuario));

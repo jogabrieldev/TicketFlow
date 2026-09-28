@@ -47,6 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**", "/api/ticket-batches/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/reservations/**").hasRole("CLIENTE")
+                        .requestMatchers("/api/orders/**").hasRole("CLIENTE")
                         .anyRequest().authenticated()
                 )
                 .httpBasic(httpBasic -> httpBasic.authenticationEntryPoint(pontoDeEntradaDeAutenticacao)

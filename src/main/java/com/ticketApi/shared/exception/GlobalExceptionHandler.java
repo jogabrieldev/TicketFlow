@@ -1,6 +1,14 @@
 package com.ticketApi.shared.exception;
 
 import com.ticketApi.event.exception.EventNotFoundException;
+import com.ticketApi.order.exception.OrderAlreadyExistsException;
+import com.ticketApi.order.exception.ReservationForOrderNotFoundException;
+import com.ticketApi.order.exception.ReservationUnavailableForOrderException;
+import com.ticketApi.reservation.exception.AuthenticatedUserNotFoundException;
+import com.ticketApi.reservation.exception.DuplicateTicketBatchException;
+import com.ticketApi.reservation.exception.EmptyReservationException;
+import com.ticketApi.reservation.exception.MixedEventReservationException;
+import com.ticketApi.ticket.exception.InsufficientTicketAvailabilityException;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
 import com.ticketApi.user.exception.EmailAlreadyRegisteredException;
 import jakarta.validation.ConstraintViolationException;
@@ -31,6 +39,45 @@ public class GlobalExceptionHandler {
     ProblemDetail tratarLoteNaoEncontrado(TicketBatchNotFoundException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
         problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(ReservationForOrderNotFoundException.class)
+    ProblemDetail tratarReservaDoPedidoNaoEncontrada(ReservationForOrderNotFoundException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
+        problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler({OrderAlreadyExistsException.class, ReservationUnavailableForOrderException.class})
+    ProblemDetail tratarConflitoDePedido(RuntimeException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("Pedido não pode ser criado");
+        return problema;
+    }
+
+    @ExceptionHandler(AuthenticatedUserNotFoundException.class)
+    ProblemDetail tratarUsuarioAutenticadoNaoEncontrado(AuthenticatedUserNotFoundException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
+        problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(InsufficientTicketAvailabilityException.class)
+    ProblemDetail tratarQuantidadeIndisponivel(InsufficientTicketAvailabilityException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("Ingressos indisponíveis");
+        return problema;
+    }
+
+    @ExceptionHandler({
+            DuplicateTicketBatchException.class,
+            EmptyReservationException.class,
+            MixedEventReservationException.class
+    })
+    ProblemDetail tratarReservaInvalida(RuntimeException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, excecao.getMessage());
+        problema.setTitle("Reserva inválida");
         return problema;
     }
 

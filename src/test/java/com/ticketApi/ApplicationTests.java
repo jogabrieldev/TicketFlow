@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "ticketflow.reservation.expiration.enabled=false")
 @AutoConfigureMockMvc
 class ApplicationTests {
 
@@ -34,6 +34,10 @@ class ApplicationTests {
 				.andExpect(jsonPath(
 						"$['paths']['/api/events/{eventoId}/ticket-batches']['post']['security'][0]['autenticacaoBasica']"
 				).isArray())
+				.andExpect(jsonPath(
+						"$['paths']['/api/reservations']['post']['security'][0]['autenticacaoBasica']"
+				).isArray())
+				.andExpect(jsonPath("$['paths']['/api/reservations']['post']['responses']['409']").exists())
 				.andExpect(jsonPath("$['paths']['/api/events']['get']['security']").doesNotExist());
 	}
 
