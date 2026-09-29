@@ -141,4 +141,11 @@ public class Reservation {
     public OffsetDateTime obterAtualizadoEm() {
         return atualizadoEm;
     }
+
+    public void confirmar() {
+        if (status != ReservationStatus.PENDENTE) {
+            throw new IllegalStateException("Somente reservas pendentes podem ser confirmadas");
+        }
+        this.status = ReservationStatus.CONFIRMADA;
+    }
 }

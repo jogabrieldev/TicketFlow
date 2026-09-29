@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReservationControllerTest {
 
     private static final String EMAIL = "maria@exemplo.com";
+    private static final String CHAVE = "reserva-001";
     private static final UUID RESERVA_ID = UUID.fromString("90a9e01a-f935-4c67-a911-79add48bec38");
     private static final UUID EVENTO_ID = UUID.fromString("0da09ae8-e43f-45a0-b047-54136b76c738");
     private static final UUID LOTE_ID = UUID.fromString("8d0c4bbc-6bf5-4e50-81ba-2a6f0ca302e7");
@@ -49,9 +50,10 @@ class ReservationControllerTest {
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
     void deveCriarReservaParaClienteAutenticado() throws Exception {
-        given(servicoDeReservas.criar(eq(EMAIL), any())).willReturn(criarResposta());
+        given(servicoDeReservas.criar(eq(EMAIL), eq(CHAVE), any())).willReturn(criarResposta());
 
         simuladorMvc.perform(post("/api/reservations")
+                        .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -77,6 +79,7 @@ class ReservationControllerTest {
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
     void deveRejeitarReservaSemItens() throws Exception {
         simuladorMvc.perform(post("/api/reservations")
+                        .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"itens": []}
@@ -88,11 +91,23 @@ class ReservationControllerTest {
 
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
+    void deveExigirChaveDeIdempotencia() throws Exception {
+        simuladorMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"itens":[{"loteId":"8d0c4bbc-6bf5-4e50-81ba-2a6f0ca302e7","quantidade":2}]}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = EMAIL, roles = "CLIENTE")
     void deveRetornarConflitoQuandoNaoHouverDisponibilidade() throws Exception {
-        given(servicoDeReservas.criar(eq(EMAIL), any()))
+        given(servicoDeReservas.criar(eq(EMAIL), eq(CHAVE), any()))
                 .willThrow(new InsufficientTicketAvailabilityException(LOTE_ID, 3));
 
         simuladorMvc.perform(post("/api/reservations")
+                        .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

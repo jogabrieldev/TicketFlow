@@ -4,10 +4,14 @@ import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.order.exception.OrderAlreadyExistsException;
 import com.ticketApi.order.exception.ReservationForOrderNotFoundException;
 import com.ticketApi.order.exception.ReservationUnavailableForOrderException;
+import com.ticketApi.payment.exception.PaymentNotFoundException;
+import com.ticketApi.payment.exception.PaymentOrderNotFoundException;
+import com.ticketApi.payment.exception.PaymentUnavailableException;
 import com.ticketApi.reservation.exception.AuthenticatedUserNotFoundException;
 import com.ticketApi.reservation.exception.DuplicateTicketBatchException;
 import com.ticketApi.reservation.exception.EmptyReservationException;
 import com.ticketApi.reservation.exception.MixedEventReservationException;
+import com.ticketApi.shared.idempotency.IdempotencyConflictException;
 import com.ticketApi.ticket.exception.InsufficientTicketAvailabilityException;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
 import com.ticketApi.user.exception.EmailAlreadyRegisteredException;
@@ -53,6 +57,27 @@ public class GlobalExceptionHandler {
     ProblemDetail tratarConflitoDePedido(RuntimeException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
         problema.setTitle("Pedido não pode ser criado");
+        return problema;
+    }
+
+    @ExceptionHandler({PaymentNotFoundException.class, PaymentOrderNotFoundException.class})
+    ProblemDetail tratarPagamentoNaoEncontrado(RuntimeException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
+        problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(PaymentUnavailableException.class)
+    ProblemDetail tratarPagamentoIndisponivel(PaymentUnavailableException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("Pagamento não pode ser processado");
+        return problema;
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    ProblemDetail tratarConflitoDeIdempotencia(IdempotencyConflictException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("Conflito de idempotência");
         return problema;
     }
 

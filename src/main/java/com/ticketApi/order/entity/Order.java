@@ -151,4 +151,11 @@ public class Order {
     public OffsetDateTime obterAtualizadoEm() {
         return atualizadoEm;
     }
+
+    public void marcarComoPago() {
+        if (status != OrderStatus.PENDENTE_PAGAMENTO) {
+            throw new IllegalStateException("Somente pedidos pendentes podem ser pagos");
+        }
+        this.status = OrderStatus.PAGO;
+    }
 }

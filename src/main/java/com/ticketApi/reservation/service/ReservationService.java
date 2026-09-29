@@ -10,6 +10,9 @@ import com.ticketApi.reservation.exception.DuplicateTicketBatchException;
 import com.ticketApi.reservation.exception.EmptyReservationException;
 import com.ticketApi.reservation.exception.MixedEventReservationException;
 import com.ticketApi.reservation.repository.ReservationRepository;
+import com.ticketApi.shared.idempotency.IdempotencyOperation;
+import com.ticketApi.shared.idempotency.IdempotencyService;
+import com.ticketApi.shared.idempotency.RequestFingerprint;
 import com.ticketApi.ticket.entity.TicketBatch;
 import com.ticketApi.ticket.exception.InsufficientTicketAvailabilityException;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
@@ -42,13 +45,15 @@ public class ReservationService {
     private final UserRepository repositorioDeUsuarios;
     private final Duration duracaoDaReserva;
     private final Clock relogio;
+    private final IdempotencyService servicoDeIdempotencia;
 
     public ReservationService(
             ReservationRepository repositorioDeReservas,
             TicketBatchRepository repositorioDeLotes,
             UserRepository repositorioDeUsuarios,
             @Value("${ticketflow.reservation.expiration-duration:PT15M}") Duration duracaoDaReserva,
-            Clock relogio
+            Clock relogio,
+            IdempotencyService servicoDeIdempotencia
     ) {
         if (duracaoDaReserva == null || duracaoDaReserva.isZero() || duracaoDaReserva.isNegative()) {
             throw new IllegalArgumentException("A duração da reserva deve ser maior que zero");
@@ -58,6 +63,7 @@ public class ReservationService {
         this.repositorioDeUsuarios = repositorioDeUsuarios;
         this.duracaoDaReserva = duracaoDaReserva;
         this.relogio = relogio;
+        this.servicoDeIdempotencia = servicoDeIdempotencia;
     }
 
     @Transactional
@@ -65,6 +71,37 @@ public class ReservationService {
         User usuario = buscarUsuarioAutenticado(emailDoUsuario);
         validarReservaComItens(requisicao);
         validarLotesDuplicados(requisicao.itens());
+
+        return criarNova(usuario, requisicao);
+    }
+
+    @Transactional
+    public ReservationResponse criar(
+            String emailDoUsuario,
+            String chaveDeIdempotencia,
+            CreateReservationRequest requisicao
+    ) {
+        User usuario = buscarUsuarioAutenticado(emailDoUsuario);
+        validarReservaComItens(requisicao);
+        validarLotesDuplicados(requisicao.itens());
+        String hash = RequestFingerprint.gerar(representacaoCanonica(requisicao));
+
+        return servicoDeIdempotencia.executar(
+                usuario.obterId(),
+                IdempotencyOperation.CRIAR_RESERVA,
+                chaveDeIdempotencia,
+                hash,
+                recursoId -> repositorioDeReservas.buscarComItensPorId(recursoId)
+                        .map(ReservationResponse::de)
+                        .orElseThrow(() -> new IllegalStateException("Reserva idempotente não encontrada")),
+                () -> {
+                    ReservationResponse resposta = criarNova(usuario, requisicao);
+                    return new IdempotencyService.CreatedResource<>(resposta.id(), resposta);
+                }
+        );
+    }
+
+    private ReservationResponse criarNova(User usuario, CreateReservationRequest requisicao) {
 
         Map<UUID, TicketBatch> lotesPorId = buscarLotes(requisicao.itens());
         validarMesmoEvento(requisicao.itens(), lotesPorId);
@@ -92,6 +129,13 @@ public class ReservationService {
         }
 
         return ReservationResponse.de(repositorioDeReservas.saveAndFlush(reserva));
+    }
+
+    private static String representacaoCanonica(CreateReservationRequest requisicao) {
+        return requisicao.itens().stream()
+                .sorted(Comparator.comparing(CreateReservationItemRequest::loteId))
+                .map(item -> item.loteId() + ":" + item.quantidade())
+                .collect(java.util.stream.Collectors.joining("|"));
     }
 
     @Transactional(readOnly = true)

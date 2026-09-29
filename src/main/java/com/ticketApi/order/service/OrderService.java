@@ -12,6 +12,9 @@ import com.ticketApi.reservation.entity.Reservation;
 import com.ticketApi.reservation.entity.ReservationStatus;
 import com.ticketApi.reservation.exception.AuthenticatedUserNotFoundException;
 import com.ticketApi.reservation.repository.ReservationRepository;
+import com.ticketApi.shared.idempotency.IdempotencyOperation;
+import com.ticketApi.shared.idempotency.IdempotencyService;
+import com.ticketApi.shared.idempotency.RequestFingerprint;
 import com.ticketApi.user.entity.User;
 import com.ticketApi.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -31,22 +34,52 @@ public class OrderService {
     private final ReservationRepository repositorioDeReservas;
     private final UserRepository repositorioDeUsuarios;
     private final Clock relogio;
+    private final IdempotencyService servicoDeIdempotencia;
 
     public OrderService(
             OrderRepository repositorioDePedidos,
             ReservationRepository repositorioDeReservas,
             UserRepository repositorioDeUsuarios,
-            Clock relogio
+            Clock relogio,
+            IdempotencyService servicoDeIdempotencia
     ) {
         this.repositorioDePedidos = repositorioDePedidos;
         this.repositorioDeReservas = repositorioDeReservas;
         this.repositorioDeUsuarios = repositorioDeUsuarios;
         this.relogio = relogio;
+        this.servicoDeIdempotencia = servicoDeIdempotencia;
     }
 
     @Transactional
     public OrderResponse criar(String emailDoUsuario, CreateOrderRequest requisicao) {
         User usuario = buscarUsuarioAutenticado(emailDoUsuario);
+        return criarNovo(usuario, requisicao);
+    }
+
+    @Transactional
+    public OrderResponse criar(
+            String emailDoUsuario,
+            String chaveDeIdempotencia,
+            CreateOrderRequest requisicao
+    ) {
+        User usuario = buscarUsuarioAutenticado(emailDoUsuario);
+        String hash = RequestFingerprint.gerar(requisicao.reservaId().toString());
+        return servicoDeIdempotencia.executar(
+                usuario.obterId(),
+                IdempotencyOperation.CRIAR_PEDIDO,
+                chaveDeIdempotencia,
+                hash,
+                recursoId -> repositorioDePedidos.buscarComItensPorId(recursoId)
+                        .map(OrderResponse::de)
+                        .orElseThrow(() -> new IllegalStateException("Pedido idempotente não encontrado")),
+                () -> {
+                    OrderResponse resposta = criarNovo(usuario, requisicao);
+                    return new IdempotencyService.CreatedResource<>(resposta.id(), resposta);
+                }
+        );
+    }
+
+    private OrderResponse criarNovo(User usuario, CreateOrderRequest requisicao) {
         Reservation reservaBloqueada = repositorioDeReservas.buscarPorIdParaAtualizacao(requisicao.reservaId())
                 .orElseThrow(() -> new ReservationForOrderNotFoundException(requisicao.reservaId()));
 

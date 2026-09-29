@@ -12,6 +12,7 @@ import com.ticketApi.order.exception.ReservationUnavailableForOrderException;
 import com.ticketApi.order.repository.OrderRepository;
 import com.ticketApi.reservation.entity.Reservation;
 import com.ticketApi.reservation.repository.ReservationRepository;
+import com.ticketApi.shared.idempotency.IdempotencyService;
 import com.ticketApi.ticket.entity.TicketBatch;
 import com.ticketApi.user.entity.User;
 import com.ticketApi.user.entity.UserRole;
@@ -54,6 +55,9 @@ class OrderServiceTest {
     @Mock
     private UserRepository repositorioDeUsuarios;
 
+    @Mock
+    private IdempotencyService servicoDeIdempotencia;
+
     private OrderService servicoDePedidos;
     private User usuario;
     private Reservation reserva;
@@ -65,7 +69,8 @@ class OrderServiceTest {
                 repositorioDePedidos,
                 repositorioDeReservas,
                 repositorioDeUsuarios,
-                relogio
+                relogio,
+                servicoDeIdempotencia
         );
         usuario = new User("Cliente", EMAIL, "hash", UserRole.CLIENTE);
         reserva = criarReserva(usuario, AGORA.plusMinutes(15));

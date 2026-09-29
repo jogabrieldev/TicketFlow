@@ -11,6 +11,7 @@ import com.ticketApi.reservation.exception.DuplicateTicketBatchException;
 import com.ticketApi.reservation.exception.EmptyReservationException;
 import com.ticketApi.reservation.exception.MixedEventReservationException;
 import com.ticketApi.reservation.repository.ReservationRepository;
+import com.ticketApi.shared.idempotency.IdempotencyService;
 import com.ticketApi.ticket.entity.TicketBatch;
 import com.ticketApi.ticket.exception.InsufficientTicketAvailabilityException;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
@@ -63,6 +64,9 @@ class ReservationServiceTest {
     @Mock
     private UserRepository repositorioDeUsuarios;
 
+    @Mock
+    private IdempotencyService servicoDeIdempotencia;
+
     private ReservationService servicoDeReservas;
 
     @BeforeEach
@@ -73,7 +77,8 @@ class ReservationServiceTest {
                 repositorioDeLotes,
                 repositorioDeUsuarios,
                 Duration.ofMinutes(15),
-                relogio
+                relogio,
+                servicoDeIdempotencia
         );
     }
 

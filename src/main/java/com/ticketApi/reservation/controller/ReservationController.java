@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,9 +50,17 @@ public class ReservationController {
     })
     public ResponseEntity<ReservationResponse> criar(
             Authentication autenticacao,
+            @RequestHeader("Idempotency-Key")
+            @NotBlank(message = "A chave de idempotência é obrigatória")
+            @Size(max = 255, message = "A chave de idempotência deve ter no máximo 255 caracteres")
+            String chaveDeIdempotencia,
             @Valid @RequestBody CreateReservationRequest requisicao
     ) {
-        ReservationResponse reserva = servicoDeReservas.criar(autenticacao.getName(), requisicao);
+        ReservationResponse reserva = servicoDeReservas.criar(
+                autenticacao.getName(),
+                chaveDeIdempotencia,
+                requisicao
+        );
 
         return ResponseEntity
                 .created(URI.create("/api/reservations/" + reserva.id()))

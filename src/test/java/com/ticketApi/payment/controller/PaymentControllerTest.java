@@ -1,12 +1,10 @@
-package com.ticketApi.order.controller;
+package com.ticketApi.payment.controller;
 
 import com.ticketApi.auth.config.SecurityConfig;
-import com.ticketApi.order.dto.OrderItemResponse;
-import com.ticketApi.order.dto.OrderPageResponse;
-import com.ticketApi.order.dto.OrderResponse;
-import com.ticketApi.order.entity.OrderStatus;
-import com.ticketApi.order.exception.OrderAlreadyExistsException;
-import com.ticketApi.order.service.OrderService;
+import com.ticketApi.payment.dto.PaymentResponse;
+import com.ticketApi.payment.entity.PaymentStatus;
+import com.ticketApi.payment.exception.PaymentUnavailableException;
+import com.ticketApi.payment.service.PaymentService;
 import com.ticketApi.shared.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +17,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -31,107 +28,96 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(OrderController.class)
+@WebMvcTest(PaymentController.class)
 @Import({GlobalExceptionHandler.class, SecurityConfig.class})
-class OrderControllerTest {
+class PaymentControllerTest {
 
     private static final String EMAIL = "cliente@ticketflow.com";
-    private static final String CHAVE = "pedido-001";
+    private static final String CHAVE = "pagamento-001";
+    private static final UUID PAGAMENTO_ID = UUID.fromString("9d942d96-1007-420d-97fa-eebfe157171b");
     private static final UUID PEDIDO_ID = UUID.fromString("7705ba6a-aa10-4f89-a196-f4450a79d445");
-    private static final UUID RESERVA_ID = UUID.fromString("52e655a8-c797-4d5c-9056-40b487638819");
-    private static final UUID LOTE_ID = UUID.fromString("6ab8fe78-6b69-420a-85c2-167df0a0c5db");
 
     @Autowired
     private MockMvc simuladorMvc;
 
     @MockitoBean
-    private OrderService servicoDePedidos;
+    private PaymentService servicoDePagamentos;
 
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
-    void deveCriarPedidoParaClienteAutenticado() throws Exception {
-        given(servicoDePedidos.criar(eq(EMAIL), eq(CHAVE), any())).willReturn(criarResposta());
+    void deveProcessarPagamento() throws Exception {
+        given(servicoDePagamentos.criar(eq(EMAIL), eq(CHAVE), any())).willReturn(resposta());
 
-        simuladorMvc.perform(post("/api/orders")
+        simuladorMvc.perform(post("/api/payments")
                         .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"reservaId":"52e655a8-c797-4d5c-9056-40b487638819"}
+                                {"pedidoId":"7705ba6a-aa10-4f89-a196-f4450a79d445","tokenPagamento":"tok_aprovado"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/api/orders/" + PEDIDO_ID))
-                .andExpect(jsonPath("$.status").value("PENDENTE_PAGAMENTO"))
-                .andExpect(jsonPath("$.valorTotal").value(200.00));
+                .andExpect(header().string("Location", "/api/payments/" + PAGAMENTO_ID))
+                .andExpect(jsonPath("$.status").value("APROVADO"))
+                .andExpect(jsonPath("$.valor").value(200.00));
     }
 
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
-    void deveValidarIdentificadorDaReserva() throws Exception {
-        simuladorMvc.perform(post("/api/orders")
+    void deveValidarCorpo() throws Exception {
+        simuladorMvc.perform(post("/api/payments")
                         .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erros[0].campo").value("reservaId"));
+                .andExpect(jsonPath("$.erros.length()").value(2));
     }
 
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
-    void deveRetornarConflitoParaPedidoDuplicado() throws Exception {
-        given(servicoDePedidos.criar(eq(EMAIL), eq(CHAVE), any()))
-                .willThrow(new OrderAlreadyExistsException(RESERVA_ID));
+    void deveRetornarConflitoQuandoPedidoEstiverIndisponivel() throws Exception {
+        given(servicoDePagamentos.criar(eq(EMAIL), eq(CHAVE), any()))
+                .willThrow(new PaymentUnavailableException(PEDIDO_ID));
 
-        simuladorMvc.perform(post("/api/orders")
+        simuladorMvc.perform(post("/api/payments")
                         .header("Idempotency-Key", CHAVE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"reservaId":"52e655a8-c797-4d5c-9056-40b487638819"}
+                                {"pedidoId":"7705ba6a-aa10-4f89-a196-f4450a79d445","tokenPagamento":"tok_aprovado"}
                                 """))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Pedido não pode ser criado"));
+                .andExpect(jsonPath("$.title").value("Pagamento não pode ser processado"));
     }
 
     @Test
     @WithMockUser(username = EMAIL, roles = "CLIENTE")
-    void deveListarPedidosDoCliente() throws Exception {
-        given(servicoDePedidos.listarDoUsuario(EMAIL, 0, 20))
-                .willReturn(new OrderPageResponse(List.of(criarResposta()), 0, 20, 1, 1));
+    void deveConsultarPagamento() throws Exception {
+        given(servicoDePagamentos.buscar(EMAIL, PAGAMENTO_ID)).willReturn(resposta());
 
-        simuladorMvc.perform(get("/api/orders/me"))
+        simuladorMvc.perform(get("/api/payments/{id}", PAGAMENTO_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.conteudo[0].id").value(PEDIDO_ID.toString()))
-                .andExpect(jsonPath("$.totalElementos").value(1));
+                .andExpect(jsonPath("$.id").value(PAGAMENTO_ID.toString()));
     }
 
     @Test
     void deveExigirAutenticacao() throws Exception {
-        simuladorMvc.perform(get("/api/orders/me"))
+        simuladorMvc.perform(get("/api/payments/{id}", PAGAMENTO_ID))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
     void deveNegarAcessoAoAdministrador() throws Exception {
-        simuladorMvc.perform(get("/api/orders/me"))
+        simuladorMvc.perform(get("/api/payments/{id}", PAGAMENTO_ID))
                 .andExpect(status().isForbidden());
     }
 
-    private static OrderResponse criarResposta() {
+    private static PaymentResponse resposta() {
         OffsetDateTime agora = OffsetDateTime.parse("2030-01-01T12:00:00Z");
-        OrderItemResponse item = new OrderItemResponse(
-                LOTE_ID,
-                "Primeiro lote",
-                2,
-                new BigDecimal("100.00"),
-                new BigDecimal("200.00")
-        );
-        return new OrderResponse(
+        return new PaymentResponse(
+                PAGAMENTO_ID,
                 PEDIDO_ID,
-                RESERVA_ID,
-                OrderStatus.PENDENTE_PAGAMENTO,
+                PaymentStatus.APROVADO,
                 new BigDecimal("200.00"),
-                agora.plusMinutes(15),
-                List.of(item),
+                "fake_referencia",
                 agora,
                 agora
         );
