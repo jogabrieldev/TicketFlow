@@ -6,6 +6,14 @@ import com.ticketApi.event.dto.EventResponse;
 import com.ticketApi.event.entity.Event;
 import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.event.repository.EventRepository;
+import com.ticketApi.organization.entity.Organization;
+import com.ticketApi.organization.exception.OrganizationAccessDeniedException;
+import com.ticketApi.organization.exception.OrganizationNotFoundException;
+import com.ticketApi.organization.repository.OrganizationRepository;
+import com.ticketApi.reservation.exception.AuthenticatedUserNotFoundException;
+import com.ticketApi.user.entity.User;
+import com.ticketApi.user.entity.UserRole;
+import com.ticketApi.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,14 +26,28 @@ import java.util.UUID;
 public class EventService {
 
     private final EventRepository repositorioDeEventos;
+    private final OrganizationRepository repositorioDeOrganizacoes;
+    private final UserRepository repositorioDeUsuarios;
 
-    public EventService(EventRepository repositorioDeEventos) {
+    public EventService(
+            EventRepository repositorioDeEventos,
+            OrganizationRepository repositorioDeOrganizacoes,
+            UserRepository repositorioDeUsuarios
+    ) {
         this.repositorioDeEventos = repositorioDeEventos;
+        this.repositorioDeOrganizacoes = repositorioDeOrganizacoes;
+        this.repositorioDeUsuarios = repositorioDeUsuarios;
     }
 
     @Transactional
-    public EventResponse criar(CreateEventRequest requisicao) {
+    public EventResponse criar(String emailDoUsuario, UUID organizacaoId, CreateEventRequest requisicao) {
+        User usuario = buscarUsuarioAutenticado(emailDoUsuario);
+        Organization organizacao = repositorioDeOrganizacoes.findById(organizacaoId)
+                .orElseThrow(() -> new OrganizationNotFoundException(organizacaoId));
+        validarPermissaoDeCriacao(usuario, organizacaoId);
+
         Event evento = new Event(
+                organizacao,
                 requisicao.nome(),
                 requisicao.descricao(),
                 requisicao.local(),
@@ -53,5 +75,16 @@ public class EventService {
         Page<EventResponse> eventos = repositorioDeEventos.findAll(requisicaoDePagina).map(EventResponse::de);
 
         return EventPageResponse.de(eventos);
+    }
+
+    private User buscarUsuarioAutenticado(String email) {
+        return repositorioDeUsuarios.buscarPorEmail(email)
+                .orElseThrow(() -> new AuthenticatedUserNotFoundException(email));
+    }
+
+    private void validarPermissaoDeCriacao(User usuario, UUID organizacaoId) {
+        if (usuario.obterPapel() != UserRole.ADMINISTRADOR) {
+            throw new OrganizationAccessDeniedException(organizacaoId);
+        }
     }
 }

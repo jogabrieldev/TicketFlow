@@ -6,6 +6,7 @@ import com.ticketApi.order.dto.CreateOrderRequest;
 import com.ticketApi.order.dto.OrderResponse;
 import com.ticketApi.order.repository.OrderRepository;
 import com.ticketApi.order.service.OrderService;
+import com.ticketApi.organization.repository.OrganizationRepository;
 import com.ticketApi.payment.dto.CreatePaymentRequest;
 import com.ticketApi.payment.dto.PaymentResponse;
 import com.ticketApi.payment.repository.PaymentRepository;
@@ -42,6 +43,7 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao;
 
 @SpringBootTest(properties = "ticketflow.reservation.expiration.enabled=false")
 @Testcontainers
@@ -60,13 +62,15 @@ class IdempotencyIntegrationTest {
     @Autowired private ReservationRepository repositorioDeReservas;
     @Autowired private TicketBatchRepository repositorioDeLotes;
     @Autowired private EventRepository repositorioDeEventos;
+    @Autowired private OrganizationRepository repositorioDeOrganizacoes;
     @Autowired private UserRepository repositorioDeUsuarios;
     @Autowired private JdbcTemplate jdbc;
 
     @BeforeEach
     void limparBanco() {
         jdbc.execute("TRUNCATE TABLE idempotency_records, payments, order_items, orders, "
-                + "reservation_items, reservations, ticket_batches, events, users CASCADE");
+                + "reservation_items, reservations, ticket_batches, events, organization_members, "
+                + "organizations, users CASCADE");
     }
 
     @Test
@@ -162,7 +166,9 @@ class IdempotencyIntegrationTest {
         repositorioDeUsuarios.saveAndFlush(new User("Cliente", email, "hash", UserRole.CLIENTE));
         OffsetDateTime inicio = OffsetDateTime.now(ZoneOffset.UTC).plusDays(10);
         Event evento = repositorioDeEventos.saveAndFlush(
-                new Event("Evento", null, "Sao Paulo", inicio, inicio.plusHours(8))
+                new Event(
+                        repositorioDeOrganizacoes.saveAndFlush(criarOrganizacao()),
+                        "Evento", null, "Sao Paulo", inicio, inicio.plusHours(8))
         );
         TicketBatch lote = repositorioDeLotes.saveAndFlush(
                 new TicketBatch(evento, "Primeiro lote", new BigDecimal("100.00"), quantidade)

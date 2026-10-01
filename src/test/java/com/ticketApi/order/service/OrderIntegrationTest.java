@@ -9,6 +9,7 @@ import com.ticketApi.order.entity.OrderStatus;
 import com.ticketApi.order.exception.OrderAlreadyExistsException;
 import com.ticketApi.order.exception.ReservationUnavailableForOrderException;
 import com.ticketApi.order.repository.OrderRepository;
+import com.ticketApi.organization.repository.OrganizationRepository;
 import com.ticketApi.reservation.dto.CreateReservationItemRequest;
 import com.ticketApi.reservation.dto.CreateReservationRequest;
 import com.ticketApi.reservation.dto.ReservationResponse;
@@ -43,6 +44,7 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao;
 
 @SpringBootTest(properties = "ticketflow.reservation.expiration.enabled=false")
 @Testcontainers
@@ -71,6 +73,9 @@ class OrderIntegrationTest {
     private EventRepository repositorioDeEventos;
 
     @Autowired
+    private OrganizationRepository repositorioDeOrganizacoes;
+
+    @Autowired
     private TicketBatchRepository repositorioDeLotes;
 
     @Autowired
@@ -79,7 +84,7 @@ class OrderIntegrationTest {
     @BeforeEach
     void limparBanco() {
         jdbc.execute("TRUNCATE TABLE order_items, orders, reservation_items, reservations, "
-                + "ticket_batches, events, users CASCADE");
+                + "ticket_batches, events, organization_members, organizations, users CASCADE");
     }
 
     @Test
@@ -230,7 +235,9 @@ class OrderIntegrationTest {
         );
         OffsetDateTime inicio = OffsetDateTime.now(ZoneOffset.UTC).plusDays(10);
         Event evento = repositorioDeEventos.saveAndFlush(
-                new Event("Evento", null, "Sao Paulo", inicio, inicio.plusHours(8))
+                new Event(
+                        repositorioDeOrganizacoes.saveAndFlush(criarOrganizacao()),
+                        "Evento", null, "Sao Paulo", inicio, inicio.plusHours(8))
         );
         TicketBatch lote = repositorioDeLotes.saveAndFlush(
                 new TicketBatch(evento, "Primeiro lote", new BigDecimal("100.00"), quantidadeTotal)

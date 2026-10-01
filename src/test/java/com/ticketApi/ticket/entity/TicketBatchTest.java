@@ -102,6 +102,8 @@ class TicketBatchTest {
         OffsetDateTime inicioEm = OffsetDateTime.parse("2026-10-10T09:00:00-03:00");
         OffsetDateTime terminoEm = OffsetDateTime.parse("2026-10-10T18:00:00-03:00");
 
-        return new Event("Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
+        return new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
+                "Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
     }
 }

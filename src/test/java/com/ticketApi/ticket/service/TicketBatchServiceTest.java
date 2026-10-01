@@ -3,12 +3,16 @@ package com.ticketApi.ticket.service;
 import com.ticketApi.event.entity.Event;
 import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.event.repository.EventRepository;
+import com.ticketApi.organization.exception.OrganizationAccessDeniedException;
 import com.ticketApi.ticket.dto.CreateTicketBatchRequest;
 import com.ticketApi.ticket.dto.TicketBatchPageResponse;
 import com.ticketApi.ticket.dto.TicketBatchResponse;
 import com.ticketApi.ticket.entity.TicketBatch;
 import com.ticketApi.ticket.exception.TicketBatchNotFoundException;
 import com.ticketApi.ticket.repository.TicketBatchRepository;
+import com.ticketApi.user.entity.User;
+import com.ticketApi.user.entity.UserRole;
+import com.ticketApi.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,25 +44,34 @@ class TicketBatchServiceTest {
     @Mock
     private EventRepository repositorioDeEventos;
 
+    @Mock
+    private UserRepository repositorioDeUsuarios;
+
     private TicketBatchService servicoDeLotes;
 
     @BeforeEach
     void preparar() {
-        servicoDeLotes = new TicketBatchService(repositorioDeLotes, repositorioDeEventos);
+        servicoDeLotes = new TicketBatchService(
+                repositorioDeLotes,
+                repositorioDeEventos,
+                repositorioDeUsuarios
+        );
     }
 
     @Test
     void deveCriarLoteVinculadoAoEvento() {
+        User usuario = criarUsuario(UserRole.ADMINISTRADOR);
         Event evento = criarEvento();
         CreateTicketBatchRequest requisicao = new CreateTicketBatchRequest(
                 "Primeiro lote",
                 new BigDecimal("100.00"),
                 500
         );
+        given(repositorioDeUsuarios.buscarPorEmail(usuario.obterEmail())).willReturn(Optional.of(usuario));
         given(repositorioDeEventos.findById(evento.obterId())).willReturn(Optional.of(evento));
         given(repositorioDeLotes.save(any(TicketBatch.class))).willAnswer(invocacao -> invocacao.getArgument(0));
 
-        TicketBatchResponse resposta = servicoDeLotes.criar(evento.obterId(), requisicao);
+        TicketBatchResponse resposta = servicoDeLotes.criar(usuario.obterEmail(), evento.obterId(), requisicao);
 
         ArgumentCaptor<TicketBatch> capturador = ArgumentCaptor.forClass(TicketBatch.class);
         verify(repositorioDeLotes).save(capturador.capture());
@@ -69,17 +82,48 @@ class TicketBatchServiceTest {
 
     @Test
     void deveRejeitarCriacaoQuandoEventoNaoExistir() {
+        User usuario = criarUsuario(UserRole.CLIENTE);
         UUID eventoId = UUID.randomUUID();
         CreateTicketBatchRequest requisicao = new CreateTicketBatchRequest(
                 "Primeiro lote",
                 new BigDecimal("100.00"),
                 500
         );
+        given(repositorioDeUsuarios.buscarPorEmail(usuario.obterEmail())).willReturn(Optional.of(usuario));
         given(repositorioDeEventos.findById(eventoId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> servicoDeLotes.criar(eventoId, requisicao))
+        assertThatThrownBy(() -> servicoDeLotes.criar(usuario.obterEmail(), eventoId, requisicao))
                 .isInstanceOf(EventNotFoundException.class)
                 .hasMessage("Evento não encontrado: " + eventoId);
+    }
+
+    @Test
+    void deveNegarCriacaoParaClienteQueNaoEOProprietario() {
+        User usuario = criarUsuario(UserRole.CLIENTE);
+        Event evento = criarEvento();
+        CreateTicketBatchRequest requisicao = new CreateTicketBatchRequest(
+                "Primeiro lote", new BigDecimal("100.00"), 500);
+        given(repositorioDeUsuarios.buscarPorEmail(usuario.obterEmail())).willReturn(Optional.of(usuario));
+        given(repositorioDeEventos.findById(evento.obterId())).willReturn(Optional.of(evento));
+        assertThatThrownBy(() -> servicoDeLotes.criar(usuario.obterEmail(), evento.obterId(), requisicao))
+                .isInstanceOf(OrganizationAccessDeniedException.class);
+    }
+
+    @Test
+    void devePermitirCriacaoParaAdministradorGlobal() {
+        User administrador = criarUsuario(UserRole.ADMINISTRADOR);
+        Event evento = criarEvento();
+        CreateTicketBatchRequest requisicao = new CreateTicketBatchRequest(
+                "Primeiro lote", new BigDecimal("100.00"), 500);
+        given(repositorioDeUsuarios.buscarPorEmail(administrador.obterEmail()))
+                .willReturn(Optional.of(administrador));
+        given(repositorioDeEventos.findById(evento.obterId())).willReturn(Optional.of(evento));
+        given(repositorioDeLotes.save(any(TicketBatch.class))).willAnswer(invocacao -> invocacao.getArgument(0));
+
+        TicketBatchResponse resposta = servicoDeLotes.criar(
+                administrador.obterEmail(), evento.obterId(), requisicao);
+
+        assertThat(resposta.eventoId()).isEqualTo(evento.obterId());
     }
 
     @Test
@@ -137,6 +181,12 @@ class TicketBatchServiceTest {
     private Event criarEvento() {
         OffsetDateTime inicioEm = OffsetDateTime.parse("2026-10-10T09:00:00-03:00");
         OffsetDateTime terminoEm = OffsetDateTime.parse("2026-10-10T18:00:00-03:00");
-        return new Event("Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
+        return new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
+                "Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
+    }
+
+    private User criarUsuario(UserRole papel) {
+        return new User("Maria", "maria@exemplo.com", "hash", papel);
     }
 }

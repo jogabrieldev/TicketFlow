@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,10 +41,11 @@ public class TicketBatchController {
             security = @SecurityRequirement(name = "autenticacaoBasica")
     )
     public ResponseEntity<TicketBatchResponse> criar(
+            Authentication autenticacao,
             @PathVariable UUID eventoId,
             @Valid @RequestBody CreateTicketBatchRequest requisicao
     ) {
-        TicketBatchResponse lote = servicoDeLotes.criar(eventoId, requisicao);
+        TicketBatchResponse lote = servicoDeLotes.criar(autenticacao.getName(), eventoId, requisicao);
 
         return ResponseEntity
                 .created(URI.create("/api/ticket-batches/" + lote.id()))

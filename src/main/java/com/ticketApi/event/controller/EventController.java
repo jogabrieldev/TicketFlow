@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,7 @@ import java.util.UUID;
 
 @Validated
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping("/api")
 public class EventController {
 
     private final EventService servicoDeEventos;
@@ -33,24 +34,28 @@ public class EventController {
         this.servicoDeEventos = servicoDeEventos;
     }
 
-    @PostMapping
+    @PostMapping("/organizations/{organizacaoId}/events")
     @Operation(
             summary = "Criar evento",
-            description = "Cria um evento. Operação restrita a administradores.",
+            description = "Cria um evento para uma organização. Operação restrita a administradores.",
             security = @SecurityRequirement(name = "autenticacaoBasica")
     )
-    public ResponseEntity<EventResponse> criar(@Valid @RequestBody CreateEventRequest requisicao) {
-        EventResponse evento = servicoDeEventos.criar(requisicao);
+    public ResponseEntity<EventResponse> criar(
+            Authentication autenticacao,
+            @PathVariable UUID organizacaoId,
+            @Valid @RequestBody CreateEventRequest requisicao
+    ) {
+        EventResponse evento = servicoDeEventos.criar(autenticacao.getName(), organizacaoId, requisicao);
 
         return ResponseEntity.created(URI.create("/api/events/" + evento.id())).body(evento);
     }
 
-    @GetMapping("/{eventoId}")
+    @GetMapping("/events/{eventoId}")
     public EventResponse buscarPorId(@PathVariable UUID eventoId) {
         return servicoDeEventos.buscarPorId(eventoId);
     }
 
-    @GetMapping
+    @GetMapping("/events")
     public EventPageResponse listar(
             @RequestParam(defaultValue = "0")
             @Min(value = 0, message = "A página não pode ser negativa") int pagina,

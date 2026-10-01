@@ -34,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EventControllerTest {
 
     private static final UUID EVENTO_ID = UUID.fromString("d5191ef8-5d9b-49c9-b5d2-241795a801fe");
+    private static final UUID ORGANIZACAO_ID = UUID.fromString("6daf1528-4788-4b09-9ea8-b189350f4c1f");
+    private static final String EMAIL_USUARIO = "maria@exemplo.com";
     private static final OffsetDateTime INICIO_EM =
             OffsetDateTime.parse("2026-10-10T09:00:00-03:00");
     private static final OffsetDateTime TERMINO_EM =
@@ -46,11 +48,12 @@ class EventControllerTest {
     private EventService servicoDeEventos;
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveCriarEvento() throws Exception {
-        given(servicoDeEventos.criar(any())).willReturn(criarRespostaDeEvento());
+        given(servicoDeEventos.criar(eq(EMAIL_USUARIO), eq(ORGANIZACAO_ID), any()))
+                .willReturn(criarRespostaDeEvento());
 
-        simuladorMvc.perform(post("/api/events")
+        simuladorMvc.perform(post("/api/organizations/{organizacaoId}/events", ORGANIZACAO_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -65,13 +68,15 @@ class EventControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/events/" + EVENTO_ID))
                 .andExpect(jsonPath("$.id").value(EVENTO_ID.toString()))
+                .andExpect(jsonPath("$.organizacaoId").value(ORGANIZACAO_ID.toString()))
+                .andExpect(jsonPath("$.organizacaoNomeFantasia").value("Ticket Flow"))
                 .andExpect(jsonPath("$.nome").value("Java Conference"));
     }
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveRejeitarRequisicaoDeCriacaoInvalida() throws Exception {
-        simuladorMvc.perform(post("/api/events")
+        simuladorMvc.perform(post("/api/organizations/{organizacaoId}/events", ORGANIZACAO_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -131,9 +136,9 @@ class EventControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveRejeitarCorpoComFormatoInvalido() throws Exception {
-        simuladorMvc.perform(post("/api/events")
+        simuladorMvc.perform(post("/api/organizations/{organizacaoId}/events", ORGANIZACAO_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ formato inválido }"))
@@ -145,7 +150,7 @@ class EventControllerTest {
 
     @Test
     void deveExigirAutenticacaoParaCriarEvento() throws Exception {
-        simuladorMvc.perform(post("/api/events")
+        simuladorMvc.perform(post("/api/organizations/{organizacaoId}/events", ORGANIZACAO_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized())
@@ -157,7 +162,7 @@ class EventControllerTest {
     @Test
     @WithMockUser(roles = "CLIENTE")
     void deveNegarCriacaoDeEventoParaCliente() throws Exception {
-        simuladorMvc.perform(post("/api/events")
+        simuladorMvc.perform(post("/api/organizations/{organizacaoId}/events", ORGANIZACAO_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden())
@@ -169,6 +174,8 @@ class EventControllerTest {
     private EventResponse criarRespostaDeEvento() {
         return new EventResponse(
                 EVENTO_ID,
+                ORGANIZACAO_ID,
+                "Ticket Flow",
                 "Java Conference",
                 "Java ecosystem",
                 "Convention Center",

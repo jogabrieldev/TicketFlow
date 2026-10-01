@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao;
 
 class EventTest {
 
@@ -15,8 +16,17 @@ class EventTest {
             OffsetDateTime.parse("2026-10-10T18:00:00-03:00");
 
     @Test
+    void deveRejeitarEventoSemOrganizacao() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new Event(
+                        null, "Java Conference", null, "Convention Center", INICIO_EM, TERMINO_EM))
+                .withMessage("A organização do evento é obrigatória");
+    }
+
+    @Test
     void deveCriarEventoComDadosValidos() {
         Event evento = new Event(
+                criarOrganizacao(),
                 " Java Conference ",
                 " Conference about the Java ecosystem ",
                 " Convention Center ",
@@ -34,7 +44,8 @@ class EventTest {
 
     @Test
     void deveNormalizarDescricaoVaziaParaNulo() {
-        Event evento = new Event("Java Conference", "  ", "Convention Center", INICIO_EM, TERMINO_EM);
+        Event evento = new Event(
+                criarOrganizacao(), "Java Conference", "  ", "Convention Center", INICIO_EM, TERMINO_EM);
 
         assertThat(evento.obterDescricao()).isNull();
     }
@@ -42,7 +53,8 @@ class EventTest {
     @Test
     void deveRejeitarNomeVazio() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event(" ", null, "Convention Center", INICIO_EM, TERMINO_EM))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), " ", null, "Convention Center", INICIO_EM, TERMINO_EM))
                 .withMessage("O nome do evento é obrigatório");
     }
 
@@ -51,35 +63,40 @@ class EventTest {
         String nomeLongo = "a".repeat(256);
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event(nomeLongo, null, "Convention Center", INICIO_EM, TERMINO_EM))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), nomeLongo, null, "Convention Center", INICIO_EM, TERMINO_EM))
                 .withMessage("O nome do evento deve ter no máximo 255 caracteres");
     }
 
     @Test
     void deveRejeitarLocalVazio() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event("Java Conference", null, " ", INICIO_EM, TERMINO_EM))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), "Java Conference", null, " ", INICIO_EM, TERMINO_EM))
                 .withMessage("O local do evento é obrigatório");
     }
 
     @Test
     void deveRejeitarDataDeInicioNula() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event("Java Conference", null, "Convention Center", null, TERMINO_EM))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), "Java Conference", null, "Convention Center", null, TERMINO_EM))
                 .withMessage("A data de início do evento é obrigatória");
     }
 
     @Test
     void deveRejeitarDataDeTerminoNula() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event("Java Conference", null, "Convention Center", INICIO_EM, null))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), "Java Conference", null, "Convention Center", INICIO_EM, null))
                 .withMessage("A data de término do evento é obrigatória");
     }
 
     @Test
     void deveRejeitarTerminoIgualAoInicio() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new Event("Java Conference", null, "Convention Center", INICIO_EM, INICIO_EM))
+                .isThrownBy(() -> new Event(
+                        criarOrganizacao(), "Java Conference", null, "Convention Center", INICIO_EM, INICIO_EM))
                 .withMessage("A data de término do evento deve ser posterior à data de início");
     }
 
@@ -87,6 +104,7 @@ class EventTest {
     void deveRejeitarTerminoAnteriorAoInicio() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new Event(
+                        criarOrganizacao(),
                         "Java Conference",
                         null,
                         "Convention Center",

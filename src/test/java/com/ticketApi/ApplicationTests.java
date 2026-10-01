@@ -31,7 +31,17 @@ class ApplicationTests {
 				.andExpect(jsonPath("$.info.title").value("TicketFlow API"))
 				.andExpect(jsonPath("$.components.securitySchemes.autenticacaoBasica.type").value("http"))
 				.andExpect(jsonPath("$.components.securitySchemes.autenticacaoBasica.scheme").value("basic"))
-				.andExpect(jsonPath("$['paths']['/api/events']['post']['security'][0]['autenticacaoBasica']").isArray())
+				.andExpect(jsonPath(
+						"$['paths']['/api/organizations/{organizacaoId}/events']['post']['security'][0]"
+								+ "['autenticacaoBasica']"
+				).isArray())
+				.andExpect(jsonPath("$['paths']['/api/events']['post']").doesNotExist())
+				.andExpect(jsonPath(
+						"$['paths']['/api/organizations']['post']['security'][0]['autenticacaoBasica']"
+				).isArray())
+				.andExpect(jsonPath(
+						"$['paths']['/api/organizations']['get']['security'][0]['autenticacaoBasica']"
+				).isArray())
 				.andExpect(jsonPath(
 						"$['paths']['/api/events/{eventoId}/ticket-batches']['post']['security'][0]['autenticacaoBasica']"
 				).isArray())

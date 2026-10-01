@@ -37,6 +37,7 @@ class TicketBatchControllerTest {
 
     private static final UUID EVENTO_ID = UUID.fromString("11f9ded0-ebea-4fdf-b2cf-671c0900ead5");
     private static final UUID LOTE_ID = UUID.fromString("791860d9-dead-4f73-8036-34213403ae7a");
+    private static final String EMAIL_USUARIO = "maria@exemplo.com";
 
     @Autowired
     private MockMvc simuladorMvc;
@@ -45,9 +46,9 @@ class TicketBatchControllerTest {
     private TicketBatchService servicoDeLotes;
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveCriarLote() throws Exception {
-        given(servicoDeLotes.criar(eq(EVENTO_ID), any())).willReturn(criarRespostaDeLote());
+        given(servicoDeLotes.criar(eq(EMAIL_USUARIO), eq(EVENTO_ID), any())).willReturn(criarRespostaDeLote());
 
         simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
                         .with(csrf())
@@ -67,7 +68,7 @@ class TicketBatchControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveRejeitarRequisicaoDeCriacaoInvalida() throws Exception {
         simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
                         .with(csrf())
@@ -79,9 +80,10 @@ class TicketBatchControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
+    @WithMockUser(username = EMAIL_USUARIO, roles = "ADMINISTRADOR")
     void deveRetornarNaoEncontradoAoCriarLoteParaEventoInexistente() throws Exception {
-        given(servicoDeLotes.criar(eq(EVENTO_ID), any())).willThrow(new EventNotFoundException(EVENTO_ID));
+        given(servicoDeLotes.criar(eq(EMAIL_USUARIO), eq(EVENTO_ID), any()))
+                .willThrow(new EventNotFoundException(EVENTO_ID));
 
         simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
                         .with(csrf())
@@ -95,6 +97,25 @@ class TicketBatchControllerTest {
                                 """))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Evento não encontrado: " + EVENTO_ID));
+    }
+
+    @Test
+    void deveExigirAutenticacaoParaCriarLote() throws Exception {
+        simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.title").value("Autenticação necessária"));
+    }
+
+    @Test
+    @WithMockUser(roles = "CLIENTE")
+    void deveNegarCriacaoDeLoteParaCliente() throws Exception {
+        simuladorMvc.perform(post("/api/events/{eventoId}/ticket-batches", EVENTO_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("Acesso negado"));
     }
 
     @Test

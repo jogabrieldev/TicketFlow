@@ -161,6 +161,7 @@ class ReservationExpirationServiceTest {
     private static Reservation criarReservaComDoisItens() {
         User usuario = new User("Maria", "maria@exemplo.com", "hash", UserRole.CLIENTE);
         Event evento = new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
                 "Evento",
                 null,
                 "São Paulo",

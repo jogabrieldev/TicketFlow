@@ -7,6 +7,8 @@ import java.util.UUID;
 
 public record EventResponse(
         UUID id,
+        UUID organizacaoId,
+        String organizacaoNomeFantasia,
         String nome,
         String descricao,
         String local,
@@ -19,6 +21,8 @@ public record EventResponse(
     public static EventResponse de(Event evento) {
         return new EventResponse(
                 evento.obterId(),
+                evento.obterOrganizacao().obterId(),
+                evento.obterOrganizacao().obterNomeFantasia(),
                 evento.obterNome(),
                 evento.obterDescricao(),
                 evento.obterLocal(),

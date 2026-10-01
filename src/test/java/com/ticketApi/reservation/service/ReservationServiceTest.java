@@ -276,6 +276,7 @@ class ReservationServiceTest {
 
     private static Event criarEvento(String nome) {
         return new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
                 nome,
                 null,
                 "Centro de Convenções",

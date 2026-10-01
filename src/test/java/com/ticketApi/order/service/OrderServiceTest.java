@@ -163,6 +163,7 @@ class OrderServiceTest {
 
     private static Reservation criarReserva(User usuario, OffsetDateTime expiraEm) {
         Event evento = new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
                 "Evento",
                 null,
                 "Sao Paulo",

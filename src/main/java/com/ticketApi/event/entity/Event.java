@@ -1,8 +1,12 @@
 package com.ticketApi.event.entity;
 
+import com.ticketApi.organization.entity.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,6 +24,11 @@ public class Event {
     @Id
     @Column(nullable = false, updatable = false)
     private UUID id;
+
+    @NotNull(message = "A organização do evento é obrigatória")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organization_id", nullable = false, updatable = false)
+    private Organization organizacao;
 
     @NotBlank
     @Size(max = 255)
@@ -54,12 +63,16 @@ public class Event {
     }
 
     public Event(
+            Organization organizacao,
             String nome,
             String descricao,
             String local,
             OffsetDateTime inicioEm,
             OffsetDateTime terminoEm
     ) {
+        if (organizacao == null) {
+            throw new IllegalArgumentException("A organização do evento é obrigatória");
+        }
         validarTextoObrigatorio(nome, "O nome do evento é obrigatório");
         validarTamanho(nome, "O nome do evento deve ter no máximo 255 caracteres");
         validarTextoObrigatorio(local, "O local do evento é obrigatório");
@@ -67,6 +80,7 @@ public class Event {
         validarPeriodo(inicioEm, terminoEm);
 
         this.id = UUID.randomUUID();
+        this.organizacao = organizacao;
         this.nome = nome.trim();
         this.descricao = normalizarTextoOpcional(descricao);
         this.local = local.trim();
@@ -107,6 +121,10 @@ public class Event {
 
     public UUID obterId() {
         return id;
+    }
+
+    public Organization obterOrganizacao() {
+        return organizacao;
     }
 
     public String obterNome() {

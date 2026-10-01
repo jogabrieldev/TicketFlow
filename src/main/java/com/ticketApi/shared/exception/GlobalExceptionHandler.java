@@ -4,6 +4,11 @@ import com.ticketApi.event.exception.EventNotFoundException;
 import com.ticketApi.order.exception.OrderAlreadyExistsException;
 import com.ticketApi.order.exception.ReservationForOrderNotFoundException;
 import com.ticketApi.order.exception.ReservationUnavailableForOrderException;
+import com.ticketApi.organization.exception.CnpjAlreadyRegisteredException;
+import com.ticketApi.organization.exception.OrganizationAccessDeniedException;
+import com.ticketApi.organization.exception.OrganizationManagementDeniedException;
+import com.ticketApi.organization.exception.OrganizationNotFoundException;
+import com.ticketApi.organization.exception.OrganizationOwnerAlreadyExistsException;
 import com.ticketApi.payment.exception.PaymentNotFoundException;
 import com.ticketApi.payment.exception.PaymentOrderNotFoundException;
 import com.ticketApi.payment.exception.PaymentUnavailableException;
@@ -31,6 +36,27 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(OrganizationNotFoundException.class)
+    ProblemDetail tratarOrganizacaoNaoEncontrada(OrganizationNotFoundException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, excecao.getMessage());
+        problema.setTitle("Recurso não encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler({OrganizationAccessDeniedException.class, OrganizationManagementDeniedException.class})
+    ProblemDetail tratarAcessoNegadoAOrganizacao(RuntimeException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, excecao.getMessage());
+        problema.setTitle("Acesso negado");
+        return problema;
+    }
+
+    @ExceptionHandler({CnpjAlreadyRegisteredException.class, OrganizationOwnerAlreadyExistsException.class})
+    ProblemDetail tratarConflitoDeOrganizacao(RuntimeException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, excecao.getMessage());
+        problema.setTitle("Organização não pode ser criada");
+        return problema;
+    }
 
     @ExceptionHandler(EventNotFoundException.class)
     ProblemDetail tratarEventoNaoEncontrado(EventNotFoundException excecao) {

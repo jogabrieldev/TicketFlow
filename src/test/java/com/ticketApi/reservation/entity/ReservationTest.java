@@ -121,7 +121,9 @@ class ReservationTest {
     private TicketBatch criarLote() {
         OffsetDateTime inicioEm = OffsetDateTime.parse("2026-10-10T09:00:00-03:00");
         OffsetDateTime terminoEm = OffsetDateTime.parse("2026-10-10T18:00:00-03:00");
-        Event evento = new Event("Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
+        Event evento = new Event(
+                com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao(),
+                "Java Conference", null, "Centro de Convenções", inicioEm, terminoEm);
         return new TicketBatch(evento, "Primeiro lote", new BigDecimal("100.00"), 500);
     }
 }

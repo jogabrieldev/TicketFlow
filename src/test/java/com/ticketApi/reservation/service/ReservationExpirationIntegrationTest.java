@@ -2,6 +2,7 @@ package com.ticketApi.reservation.service;
 
 import com.ticketApi.event.entity.Event;
 import com.ticketApi.event.repository.EventRepository;
+import com.ticketApi.organization.repository.OrganizationRepository;
 import com.ticketApi.reservation.dto.CreateReservationItemRequest;
 import com.ticketApi.reservation.dto.CreateReservationRequest;
 import com.ticketApi.reservation.dto.ReservationResponse;
@@ -35,6 +36,7 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.ticketApi.organization.OrganizationTestFactory.criarOrganizacao;
 
 @SpringBootTest(properties = "ticketflow.reservation.expiration.enabled=false")
 @Testcontainers
@@ -60,6 +62,9 @@ class ReservationExpirationIntegrationTest {
     private EventRepository repositorioDeEventos;
 
     @Autowired
+    private OrganizationRepository repositorioDeOrganizacoes;
+
+    @Autowired
     private TicketBatchRepository repositorioDeLotes;
 
     @Autowired
@@ -67,7 +72,8 @@ class ReservationExpirationIntegrationTest {
 
     @BeforeEach
     void limparBanco() {
-        jdbc.execute("TRUNCATE TABLE reservation_items, reservations, ticket_batches, events, users CASCADE");
+        jdbc.execute("TRUNCATE TABLE reservation_items, reservations, ticket_batches, events, "
+                + "organization_members, organizations, users CASCADE");
     }
 
     @Test
@@ -177,6 +183,7 @@ class ReservationExpirationIntegrationTest {
                 UserRole.CLIENTE
         ));
         Event evento = repositorioDeEventos.saveAndFlush(new Event(
+                repositorioDeOrganizacoes.saveAndFlush(criarOrganizacao()),
                 "Evento " + UUID.randomUUID(),
                 null,
                 "São Paulo",
